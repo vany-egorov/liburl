@@ -20,6 +20,7 @@
 // scheme://[userinfo@]host/path[?query][#fragment]
 typedef struct url_s URL;
 typedef enum url_scheme_enum URLScheme;
+typedef enum url_flag_enum URLFlag;
 
 
 enum url_scheme_enum {
@@ -47,6 +48,10 @@ enum url_scheme_enum {
 #define URL_SCHEME_SSH_STR      "SSH - Secure Shell"
 #define URL_SCHEME_UNKNOWN_STR  "UNKNOWN - unknown url scheme"
 
+enum url_flag_enum {
+  URL_FLAG_MULTICAST = 1, // 00000001
+};
+
 struct url_s {
 	URLScheme scheme;
 	char      userinfo[100];
@@ -55,11 +60,12 @@ struct url_s {
 	char      path[255];
 	char      query[255];
 	char      fragment[100];
-	int       is_multicast;
+	int       flags;
 };
 
 
 void url_parse(URL *it, const char *raw);
+void url_sprint_json(URL *it, char *buf, size_t bufsz);
 
 URLScheme url_scheme_parse(char *buf, size_t bufsz);
 const char *url_scheme_string(URLScheme it);

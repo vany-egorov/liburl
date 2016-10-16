@@ -114,7 +114,8 @@ void url_parse(URL *it, const char *raw) {
 		}
 	}
 
-	{
+	{ // guess missing from context
+
 		if (it->scheme == URL_SCHEME_FILE) { // add missing /
 
 			if ((strlen(it->path) != 0) &&               // path was parsed
@@ -138,9 +139,25 @@ void url_parse(URL *it, const char *raw) {
 			}
 
 		}
+
+		if (it->scheme == URL_SCHEME_HTTP) {
+			if (!it->port) it->port = 80;
+		}
+
+		if (it->scheme == URL_SCHEME_HTTPS) {
+			if (!it->port) it->port = 443;
+		}
+
+		if (it->scheme == URL_SCHEME_SSH) {
+			if (!it->port) it->port = 22;
+		}
 	}
 
 	printf("%60s >>> %40s | %5s | %20s | %5d | %20s | %10s | %s\n", raw, url_scheme_string(it->scheme), it->userinfo, it->host, it->port, it->path, it->query, it->fragment);
+}
+
+void url_sprint_json(URL *it, char *buf, size_t bufsz) {
+	return;
 }
 
 URLScheme url_scheme_parse(char *buf, size_t bufsz) {
