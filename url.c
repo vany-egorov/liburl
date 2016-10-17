@@ -1,15 +1,28 @@
 #include "url.h"
 
 
-static void prepchr(char *s, const char c) {
+// 224.0.0.0-224.0.0.255:     "Reserved for special 'well-known' multicast addresses."
+// 224.0.1.0-238.255.255.255: "Globally-scoped (Internet-wide) multicast addresses."
+// 239.0.0.0-239.255.255.255: "Administratively-scoped (local) multicast addresses."
+static char *URL_REG_PATTERN_UDP_MCAST_GROUP =
+	"2(2[4-9]|3[0-9])"
+	"(\\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9]))"
+	"(\\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9]))"
+	"(\\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9]))";
+
+
+static inline void prepchr(char *s, const char c) {
 	memmove(s+1, s, strlen(s));
 	s[0] = c;
 }
 
 
-static void split_host_port(const char *buf, const size_t bufsz, char *host, uint16_t *port) {
+static inline void split_host_port(const char *buf, const size_t bufsz, char *host, uint16_t *port) {
 	char *token = NULL;
 	char port_raw[6] = { 0 };
+
+	// /221.1.1.1:5500
+	if (!bufsz) return;
 
 	token = strchr(buf, URL_SEPARATOR_PORT);
 	if (token) { // host + port
@@ -36,6 +49,7 @@ void url_parse(URL *it, const char *raw) {
 	char copy[300];
 	char *cursor = NULL,
 	     *token = NULL;
+	regex_t reg = {0}; // UDP mcast regexp
 
 	memset(it, 0, sizeof(*it));
 	cursor = strcpy(copy, raw);
@@ -114,7 +128,7 @@ void url_parse(URL *it, const char *raw) {
 		}
 	}
 
-	{ // guess missing from context
+	{ // post-processing: guess missing from context
 
 		if (it->scheme == URL_SCHEME_FILE) { // add missing /
 
@@ -140,24 +154,68 @@ void url_parse(URL *it, const char *raw) {
 
 		}
 
-		if (it->scheme == URL_SCHEME_HTTP) {
-			if (!it->port) it->port = 80;
-		}
+		if ((it->scheme == URL_SCHEME_HTTP) &&
+		    (!it->port))
+			it->port = URL_DEFAULT_HTTP_PORT;
 
-		if (it->scheme == URL_SCHEME_HTTPS) {
-			if (!it->port) it->port = 443;
-		}
+		if ((it->scheme == URL_SCHEME_HTTPS) &&
+		    (!it->port))
+			it->port = URL_DEFAULT_HTTPS_PORT;
 
-		if (it->scheme == URL_SCHEME_SSH) {
-			if (!it->port) it->port = 22;
+		if ((it->scheme == URL_SCHEME_SSH) &&
+		    (!it->port))
+			it->port = URL_DEFAULT_SSH_PORT;
+
+		if ((it->scheme == URL_SCHEME_UDP) &&
+			  (strlen(it->host) > 0)) {
+
+			// must-compile
+			if (!regcomp(&reg, URL_REG_PATTERN_UDP_MCAST_GROUP, REG_EXTENDED|REG_ICASE)) {
+				// must-exec
+				if (!regexec(&reg, it->host, (size_t)0, NULL, 0))
+					it->flags |= URL_FLAG_MULTICAST;
+				regfree(&reg);
+			}
 		}
 	}
+}
 
-	printf("%60s >>> %40s | %5s | %20s | %5d | %20s | %10s | %s\n", raw, url_scheme_string(it->scheme), it->userinfo, it->host, it->port, it->path, it->query, it->fragment);
+void url_sprint(URL *it, char *buf, size_t bufsz) {
+	snprintf(buf+strlen(buf), bufsz-strlen(buf), "%s%s", url_scheme_string(it->scheme), URL_SEPARATOR_SCHEME);
+	if (strlen(it->userinfo))
+		snprintf(buf+strlen(buf), bufsz-strlen(buf), "%s%c", it->userinfo, URL_SEPARATOR_USERINFO);
+	if (strlen(it->host))
+		snprintf(buf+strlen(buf), bufsz-strlen(buf), "%s", it->host);
+	if (it->port)
+		snprintf(buf+strlen(buf), bufsz-strlen(buf), "%c%d", URL_SEPARATOR_PORT, it->port);
+	if (strlen(it->path))
+		snprintf(buf+strlen(buf), bufsz-strlen(buf), "%s", it->path);
+	if (strlen(it->query))
+		snprintf(buf+strlen(buf), bufsz-strlen(buf), "%c%s", URL_SEPARATOR_QUERY, it->query);
+	if (strlen(it->fragment))
+		snprintf(buf+strlen(buf), bufsz-strlen(buf), "%c%s", URL_SEPARATOR_FRAGMENT, it->fragment);
 }
 
 void url_sprint_json(URL *it, char *buf, size_t bufsz) {
-	return;
+	snprintf(buf, bufsz, "{"
+		"\"scheme\": \"%s\""
+		", \"userinfo\": \"%s\""
+		", \"host\": \"%s\""
+		", \"port\": %d"
+		", \"path\": \"%s\""
+		", \"query\": \"%s\""
+		", \"fragment\": \"%s\""
+		", \"multicast?\": %d"
+		"}",
+		url_scheme_string(it->scheme),
+		it->userinfo,
+		it->host,
+		it->port,
+		it->path,
+		it->query,
+		it->fragment,
+		it->flags & URL_FLAG_MULTICAST
+	);
 }
 
 URLScheme url_scheme_parse(char *buf, size_t bufsz) {
@@ -191,6 +249,23 @@ URLScheme url_scheme_parse(char *buf, size_t bufsz) {
 	return URL_SCHEME_UNKNOWN;
 }
 
+const char *url_scheme_descr(URLScheme it) {
+	switch (it) {
+	case URL_SCHEME_UDP:     return URL_SCHEME_UDP_DESCR;
+	case URL_SCHEME_RTMP:    return URL_SCHEME_RTMP_DESCR;
+	case URL_SCHEME_HTTP:    return URL_SCHEME_HTTP_DESCR;
+	case URL_SCHEME_HTTPS:   return URL_SCHEME_HTTPS_DESCR;
+	case URL_SCHEME_WS:      return URL_SCHEME_WS_DESCR;
+	case URL_SCHEME_WSS:     return URL_SCHEME_WSS_DESCR;
+	case URL_SCHEME_RTP:     return URL_SCHEME_RTP_DESCR;
+	case URL_SCHEME_FILE:    return URL_SCHEME_FILE_DESCR;
+	case URL_SCHEME_SSH:     return URL_SCHEME_SSH_DESCR;
+	case URL_SCHEME_UNKNOWN: return URL_SCHEME_UNKNOWN_DESCR;
+	}
+
+	return URL_SCHEME_UNKNOWN_DESCR;
+}
+
 const char *url_scheme_string(URLScheme it) {
 	switch (it) {
 	case URL_SCHEME_UDP:     return URL_SCHEME_UDP_STR;
@@ -207,3 +282,4 @@ const char *url_scheme_string(URLScheme it) {
 
 	return URL_SCHEME_UNKNOWN_STR;
 }
+
