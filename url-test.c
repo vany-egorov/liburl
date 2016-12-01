@@ -28,8 +28,18 @@
 struct fixture_s {
 	char *in;
 
-	char *s;
-	URL   u;
+	char      *s;
+	struct {
+		URLScheme scheme;
+		char      buf[255];
+		char      userinfo[100];
+		char      host[100];
+		uint16_t  port;
+		char      path[255];
+		char      query[255];
+		char      fragment[100];
+		int       flags;
+	} u;
 };
 typedef struct fixture_s Fixture;
 
@@ -204,26 +214,26 @@ int main(int argc, char **argv) {
 		printf("\"%s\" | \"%s\"\n",
 			url_scheme_string(fixture->u.scheme), url_scheme_string(u.scheme));
 
-		(!strcmp(fixture->u.userinfo, u.userinfo)) ? ppass() : pfail();
-		printf("\"%s\" | \"%s\"\n", fixture->u.userinfo, u.userinfo);
+		(!strcmp(fixture->u.userinfo, url_user_info(&u))) ? ppass() : pfail();
+		printf("\"%s\" | \"%s\"\n", fixture->u.userinfo, url_user_info(&u));
 
-		(!strcmp(fixture->u.userinfo, u.userinfo)) ? ppass() : pfail();
-		printf("\"%s\" | \"%s\"\n", fixture->u.userinfo, u.userinfo);
+		(!strcmp(fixture->u.userinfo, url_user_info(&u))) ? ppass() : pfail();
+		printf("\"%s\" | \"%s\"\n", fixture->u.userinfo, url_user_info(&u));
 
-		(!strcmp(fixture->u.host, u.host)) ? ppass() : pfail();
-		printf("\"%s\" | \"%s\"\n", fixture->u.host, u.host);
+		(!strcmp(fixture->u.host, url_host(&u))) ? ppass() : pfail();
+		printf("\"%s\" | \"%s\"\n", fixture->u.host, url_host(&u));
 
 		(fixture->u.port == u.port) ? ppass() : pfail();
 		printf("%d | %d\n", fixture->u.port, u.port);
 
-		(!strcmp(fixture->u.path, u.path)) ? ppass() : pfail();
-		printf("\"%s\" | \"%s\"\n", fixture->u.path, u.path);
+		(!strcmp(fixture->u.path, url_path(&u))) ? ppass() : pfail();
+		printf("\"%s\" | \"%s\"\n", fixture->u.path, url_path(&u));
 
-		(!strcmp(fixture->u.query, u.query)) ? ppass() : pfail();
-		printf("\"%s\" | \"%s\"\n", fixture->u.query, u.query);
+		(!strcmp(fixture->u.query, url_query(&u))) ? ppass() : pfail();
+		printf("\"%s\" | \"%s\"\n", fixture->u.query, url_query(&u));
 
-		(!strcmp(fixture->u.fragment, u.fragment)) ? ppass() : pfail();
-		printf("\"%s\" | \"%s\"\n", fixture->u.fragment, u.fragment);
+		(!strcmp(fixture->u.fragment, url_fragment(&u))) ? ppass() : pfail();
+		printf("\"%s\" | \"%s\"\n", fixture->u.fragment, url_fragment(&u));
 
 		printf("\n");
 	}
