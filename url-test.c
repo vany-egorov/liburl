@@ -46,6 +46,22 @@ typedef struct fixture_s Fixture;
 
 static Fixture fixtures[] = {
 	{
+		"../tmp/1.ts",
+		"file://../tmp/1.ts",
+		{
+			.scheme=URL_SCHEME_FILE,
+			.path="../tmp/1.ts",
+		},
+	},
+	{
+		"./tmp/1.ts",
+		"file://./tmp/1.ts",
+		{
+			.scheme=URL_SCHEME_FILE,
+			.path="./tmp/1.ts",
+		},
+	},
+	{
 		"udp://239.255.1.1:8800",
 		"udp://239.255.1.1:8800",
 		{
