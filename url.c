@@ -369,4 +369,3 @@ const char *url_scheme_string(URLScheme it) {
 
 	return URL_SCHEME_UNKNOWN_STR;
 }
-
