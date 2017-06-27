@@ -141,7 +141,6 @@ void url_parse(URL *it, const char *raw) {
 	}
 
 	if (cursor) {
-		printf("----> %s\n", cursor);
 		if ((token=strchr(cursor, URL_SEPARATOR_QUERY))) {
 			bufsz = token-cursor;
 			strncpy(
