@@ -2,12 +2,15 @@
 #define __URL__
 
 
-#include <regex.h>  // regcomp, REG_EXTENDED, REG_ICASE, regex_t
-#include <ctype.h>  // tolower
-#include <stdio.h>  // printf
-#include <stdlib.h> // atoi
-#include <stdint.h> // uint16_t
-#include <string.h> // strstr
+/* https://url.spec.whatwg.org */
+
+
+#include <regex.h>  /* regcomp, REG_EXTENDED, REG_ICASE, regex_t */
+#include <ctype.h>  /* tolower */
+#include <stdio.h>  /* printf */
+#include <stdlib.h> /* atoi */
+#include <stdint.h> /* uint16_t */
+#include <string.h> /* strstr */
 
 
 #define URL_DEFAULT_HTTP_PORT  80
@@ -22,15 +25,12 @@
 #define URL_SEPARATOR_FRAGMENT '#'
 
 #define URL_RELATIVE_PATH_START '.'
+#define URL_PATH_EXT_START '.'
 
 
 // scheme://[userinfo@]host/path[?query][#fragment]
 typedef struct url_s URL;
-typedef enum url_scheme_enum URLScheme;
-typedef enum url_flag_enum URLFlag;
-
-
-enum url_scheme_enum {
+typedef enum {
 	URL_SCHEME_UDP,
 	URL_SCHEME_RTMP,
 	URL_SCHEME_HTTP,
@@ -42,7 +42,12 @@ enum url_scheme_enum {
 	URL_SCHEME_SSH,
 
 	URL_SCHEME_UNKNOWN,
-};
+} URLScheme;
+typedef URLScheme URLProtocol;
+typedef enum {
+  URL_FLAG_MULTICAST = 0x01,
+} URLFlag;
+
 
 #define URL_SCHEME_UDP_DESCR      "UDP - User Datagram Protocol"
 #define URL_SCHEME_RTMP_DESCR     "RTMP - Real Time Messaging Protocol"
@@ -66,10 +71,6 @@ enum url_scheme_enum {
 #define URL_SCHEME_SSH_STR      "ssh"
 #define URL_SCHEME_UNKNOWN_STR  "unk"
 
-enum url_flag_enum {
-  URL_FLAG_MULTICAST = 0x01,
-};
-
 struct url_s {
 	URLScheme scheme;
 	uint16_t  port;
@@ -80,13 +81,15 @@ struct url_s {
 		got_user_info       :1,
 		got_host            :1,
 		got_path            :1,
+		got_ext             :1,
 		got_query           :1,
 		got_fragment        :1,
-		reserved_bit_fields :3;
+		reserved_bit_fields :2;
 	uint16_t
 		pos_userinfo,
 		pos_host,
 		pos_path,
+		pos_ext,
 		pos_query,
 		pos_fragment;
 	uint8_t flags;
@@ -100,8 +103,11 @@ void url_sprint(URL *it, char *buf, size_t bufsz);
 const char* url_user_info(URL *it);
 const char* url_host(URL *it);
 const char* url_path(URL *it);
+const char* url_ext(URL *it);
 const char* url_query(URL *it);
 const char* url_fragment(URL *it);
+const URLScheme url_scheme(URL *it);
+const URLProtocol url_protocol(URL *it);
 
 URLScheme url_scheme_parse(char *buf, size_t bufsz);
 const char *url_scheme_string(URLScheme it);
